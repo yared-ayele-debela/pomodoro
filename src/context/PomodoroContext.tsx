@@ -50,6 +50,19 @@ export interface SessionRecord {
   tagColor?: string;
 }
 
+export interface Badge {
+  id: string;
+  title: string;
+  description: string;
+  iconName: 'Moon' | 'Sun' | 'Target' | 'Award' | 'Shield' | 'Zap' | 'Sparkles' | 'Wind' | 'Droplets';
+  unlocked: boolean;
+  unlockedAt?: string;
+  currentProgress: number;
+  maxProgress: number;
+  progressLabel: string;
+  category: 'time' | 'streak' | 'volume' | 'wellness';
+}
+
 export interface TimerSettings {
   workDuration: number; // minutes
   shortBreakDuration: number; // minutes
@@ -77,6 +90,8 @@ export interface TimerSettings {
   guidedBreaksEnabled: boolean;
   defaultBreakActivity: 'breathing' | 'stretches' | 'eyecare' | 'hydration' | 'classic';
   breathingAudioGuidance: boolean;
+  dailyFocusTarget: number; // minutes, e.g. 180 (3h)
+  showDailyProgressRing: boolean;
 }
 
 export type BreakActivityType = 'breathing' | 'stretches' | 'eyecare' | 'hydration' | 'classic';
@@ -110,6 +125,14 @@ interface PomodoroContextType {
   deleteTag: (tagId: string) => void;
   selectedTagFilter: string | null;
   setSelectedTagFilter: (tagId: string | null) => void;
+  todayFocusMinutes: number;
+  dailyGoalPercentage: number;
+  badges: Badge[];
+  unlockedBadgesCount: number;
+  recentUnlockedBadge: Badge | null;
+  dismissBadgeToast: () => void;
+  isBadgesModalOpen: boolean;
+  setIsBadgesModalOpen: (open: boolean) => void;
   startTimer: () => void;
   pauseTimer: () => void;
   resetTimer: () => void;
@@ -154,6 +177,8 @@ const defaultSettings: TimerSettings = {
   guidedBreaksEnabled: true,
   defaultBreakActivity: 'breathing',
   breathingAudioGuidance: false,
+  dailyFocusTarget: 180, // 3 hours
+  showDailyProgressRing: true,
 };
 
 const PomodoroContext = createContext<PomodoroContextType | undefined>(undefined);
@@ -303,6 +328,191 @@ export const PomodoroProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setCompletedStretchesCount((prev) => prev + 1);
     audio.playActivityComplete();
   };
+
+  // Gamification & Milestone Badges State
+  const [unlockedBadgesMap, setUnlockedBadgesMap] = useState<Record<string, string>>(() => {
+    try {
+      const saved = localStorage.getItem('pomodoro-unlocked-badges');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const [recentUnlockedBadge, setRecentUnlockedBadge] = useState<Badge | null>(null);
+  const [isBadgesModalOpen, setIsBadgesModalOpen] = useState<boolean>(false);
+
+  const dismissBadgeToast = () => {
+    setRecentUnlockedBadge(null);
+  };
+
+  // Compute Today's total work focus minutes
+  const todayDateStr = new Date().toISOString().split('T')[0];
+  const todayFocusMinutes = history
+    .filter((r) => r.mode === 'work' && r.timestamp.startsWith(todayDateStr))
+    .reduce((sum, r) => sum + r.durationMinutes, 0);
+
+  const dailyGoalPercentage = settings.dailyFocusTarget > 0
+    ? Math.min(100, Math.round((todayFocusMinutes / settings.dailyFocusTarget) * 100))
+    : 0;
+
+  // Calculate Badge metrics
+  const totalWorkSessions = history.filter((r) => r.mode === 'work').length;
+
+  // Max sessions in a single day
+  const sessionsByDay: Record<string, number> = {};
+  history.filter((r) => r.mode === 'work').forEach((r) => {
+    const day = r.timestamp.split('T')[0];
+    sessionsByDay[day] = (sessionsByDay[day] || 0) + 1;
+  });
+  const maxSessionsInSingleDay = Math.max(0, ...Object.values(sessionsByDay));
+
+  // Night sessions (after 10 PM or before 4 AM)
+  const hasNightSession = history.some((r) => {
+    if (r.mode !== 'work') return false;
+    const hour = new Date(r.timestamp).getHours();
+    return hour >= 22 || hour < 4;
+  });
+
+  // Early bird sessions (between 4 AM and 7 AM)
+  const hasEarlySession = history.some((r) => {
+    if (r.mode !== 'work') return false;
+    const hour = new Date(r.timestamp).getHours();
+    return hour >= 4 && hour < 7;
+  });
+
+  // Define Badge definitions
+  const badgeDefs: Omit<Badge, 'unlocked' | 'unlockedAt'>[] = [
+    {
+      id: 'night-owl',
+      title: 'Night Owl',
+      description: 'Completed a focus session after 10:00 PM',
+      iconName: 'Moon',
+      currentProgress: hasNightSession ? 1 : 0,
+      maxProgress: 1,
+      progressLabel: hasNightSession ? 'Unlocked' : 'Focus after 10 PM',
+      category: 'time',
+    },
+    {
+      id: 'early-bird',
+      title: 'Early Bird',
+      description: 'Completed a focus session before 7:00 AM',
+      iconName: 'Sun',
+      currentProgress: hasEarlySession ? 1 : 0,
+      maxProgress: 1,
+      progressLabel: hasEarlySession ? 'Unlocked' : 'Focus before 7 AM',
+      category: 'time',
+    },
+    {
+      id: 'goal-crusher',
+      title: 'Goal Crusher',
+      description: 'Hit 100% of your daily focus target',
+      iconName: 'Target',
+      currentProgress: Math.min(todayFocusMinutes, settings.dailyFocusTarget),
+      maxProgress: settings.dailyFocusTarget,
+      progressLabel: `${Math.min(todayFocusMinutes, settings.dailyFocusTarget)} / ${settings.dailyFocusTarget} mins`,
+      category: 'time',
+    },
+    {
+      id: 'centurion',
+      title: 'Centurion',
+      description: 'Completed 100 Pomodoro focus sessions',
+      iconName: 'Award',
+      currentProgress: Math.min(totalWorkSessions, 100),
+      maxProgress: 100,
+      progressLabel: `${Math.min(totalWorkSessions, 100)} / 100 sessions`,
+      category: 'volume',
+    },
+    {
+      id: 'iron-streak',
+      title: 'Iron Streak',
+      description: 'Maintained a 7-day active daily streak',
+      iconName: 'Shield',
+      currentProgress: Math.min(streak, 7),
+      maxProgress: 7,
+      progressLabel: `${Math.min(streak, 7)} / 7 days`,
+      category: 'streak',
+    },
+    {
+      id: 'deep-flow',
+      title: 'Deep Flow',
+      description: 'Completed 4 focus sessions in a single day',
+      iconName: 'Zap',
+      currentProgress: Math.min(maxSessionsInSingleDay, 4),
+      maxProgress: 4,
+      progressLabel: `${Math.min(maxSessionsInSingleDay, 4)} / 4 sessions`,
+      category: 'volume',
+    },
+    {
+      id: 'focus-pioneer',
+      title: 'Focus Pioneer',
+      description: 'Completed your very first focus session',
+      iconName: 'Sparkles',
+      currentProgress: Math.min(totalWorkSessions, 1),
+      maxProgress: 1,
+      progressLabel: totalWorkSessions >= 1 ? 'Unlocked' : '0 / 1 session',
+      category: 'volume',
+    },
+    {
+      id: 'zen-master',
+      title: 'Zen Master',
+      description: 'Completed 10 guided breathing or desk stretch breaks',
+      iconName: 'Wind',
+      currentProgress: Math.min(breathingCyclesCompleted + completedStretchesCount, 10),
+      maxProgress: 10,
+      progressLabel: `${Math.min(breathingCyclesCompleted + completedStretchesCount, 10)} / 10 activities`,
+      category: 'wellness',
+    },
+    {
+      id: 'hydro-champion',
+      title: 'Hydro Champion',
+      description: 'Reached your 8-glass daily water goal',
+      iconName: 'Droplets',
+      currentProgress: Math.min(waterGlasses, 8),
+      maxProgress: 8,
+      progressLabel: `${Math.min(waterGlasses, 8)} / 8 glasses`,
+      category: 'wellness',
+    },
+  ];
+
+  const badges: Badge[] = badgeDefs.map((def) => {
+    const isUnlocked = Boolean(unlockedBadgesMap[def.id]) || def.currentProgress >= def.maxProgress;
+    return {
+      ...def,
+      unlocked: isUnlocked,
+      unlockedAt: unlockedBadgesMap[def.id],
+    };
+  });
+
+  const unlockedBadgesCount = badges.filter((b) => b.unlocked).length;
+
+  // Detect newly unlocked badges and show toast celebration
+  const isInitialBadgeLoadRef = useRef(true);
+  useEffect(() => {
+    let hasNew = false;
+    const updatedMap = { ...unlockedBadgesMap };
+
+    badgeDefs.forEach((def) => {
+      if (def.currentProgress >= def.maxProgress && !updatedMap[def.id]) {
+        updatedMap[def.id] = new Date().toISOString();
+        hasNew = true;
+        if (!isInitialBadgeLoadRef.current) {
+          setRecentUnlockedBadge({
+            ...def,
+            unlocked: true,
+            unlockedAt: updatedMap[def.id],
+          });
+          audio.playActivityComplete();
+        }
+      }
+    });
+
+    if (hasNew) {
+      setUnlockedBadgesMap(updatedMap);
+      localStorage.setItem('pomodoro-unlocked-badges', JSON.stringify(updatedMap));
+    }
+    isInitialBadgeLoadRef.current = false;
+  }, [history, streak, breathingCyclesCompleted, completedStretchesCount, waterGlasses, todayFocusMinutes]);
 
   // Reset default activity when switching into break mode
   useEffect(() => {
@@ -874,6 +1084,14 @@ export const PomodoroProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         deleteTag,
         selectedTagFilter,
         setSelectedTagFilter,
+        todayFocusMinutes,
+        dailyGoalPercentage,
+        badges,
+        unlockedBadgesCount,
+        recentUnlockedBadge,
+        dismissBadgeToast,
+        isBadgesModalOpen,
+        setIsBadgesModalOpen,
         startTimer,
         pauseTimer,
         resetTimer,

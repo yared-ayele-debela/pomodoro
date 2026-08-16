@@ -1,6 +1,34 @@
 import React, { useState } from 'react';
-import { usePomodoro, TAG_COLOR_MAP } from '../context/PomodoroContext';
-import { BarChart2, Flame, Clock, Award, Calendar, PieChart, Tag } from 'lucide-react';
+import { usePomodoro, TAG_COLOR_MAP, type Badge } from '../context/PomodoroContext';
+import {
+  BarChart2,
+  Flame,
+  Clock,
+  Award,
+  Calendar,
+  PieChart,
+  Tag,
+  Target,
+  Shield,
+  Zap,
+  Sparkles,
+  Wind,
+  Droplets,
+  Moon,
+  Sun,
+} from 'lucide-react';
+
+const STATS_BADGE_ICONS: Record<Badge['iconName'], React.FC<{ size?: number; className?: string }>> = {
+  Moon,
+  Sun,
+  Target,
+  Award,
+  Shield,
+  Zap,
+  Sparkles,
+  Wind,
+  Droplets,
+};
 
 interface CategoryBreakdown {
   id: string;
@@ -17,7 +45,7 @@ interface CategoryBreakdown {
 }
 
 export const Stats: React.FC = () => {
-  const { history, streak, totalFocusTime, tags } = usePomodoro();
+  const { history, streak, totalFocusTime, tags, badges, unlockedBadgesCount, setIsBadgesModalOpen } = usePomodoro();
   const [categoryRange, setCategoryRange] = useState<'all' | 'week' | 'today'>('all');
 
   // Get completed sessions today
@@ -472,6 +500,60 @@ export const Stats: React.FC = () => {
             <div className="w-[10px] h-[10px] rounded-[2px] bg-blue-600 dark:bg-blue-500" />
             <span>More</span>
           </div>
+        </div>
+      </div>
+
+      {/* Gamification & Milestone Badges Section */}
+      <div className="space-y-3 border-t border-neutral-100 dark:border-neutral-800/40 pt-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <Award size={14} className="text-amber-500" />
+            <h3 className="text-xs font-bold text-neutral-800 dark:text-neutral-200 uppercase tracking-wider">
+              Milestone Badges ({unlockedBadgesCount}/{badges.length})
+            </h3>
+          </div>
+          <button
+            onClick={() => setIsBadgesModalOpen(true)}
+            className="text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+          >
+            View All Badges →
+          </button>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2.5">
+          {badges.slice(0, 6).map((badge) => {
+            const Icon = STATS_BADGE_ICONS[badge.iconName] || Award;
+            const isUnlocked = badge.unlocked;
+
+            return (
+              <div
+                key={badge.id}
+                onClick={() => setIsBadgesModalOpen(true)}
+                title={`${badge.title}: ${badge.description}`}
+                className={`p-3 rounded-2xl border transition-all duration-300 flex flex-col items-center text-center cursor-pointer group ${
+                  isUnlocked
+                    ? 'bg-amber-500/5 dark:bg-amber-500/10 border-amber-500/30 hover:border-amber-500/50 shadow-xs'
+                    : 'bg-neutral-50/50 dark:bg-neutral-800/20 border-neutral-100 dark:border-neutral-800/40 opacity-70 hover:opacity-100'
+                }`}
+              >
+                <div
+                  className={`w-9 h-9 rounded-xl flex items-center justify-center mb-1.5 transition-transform group-hover:scale-105 ${
+                    isUnlocked
+                      ? 'bg-gradient-to-br from-amber-400 to-amber-500 text-neutral-950 shadow-xs'
+                      : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400'
+                  }`}
+                >
+                  <Icon size={17} className="stroke-[2.2]" />
+                </div>
+                <span className="text-[11px] font-bold text-neutral-800 dark:text-neutral-200 truncate w-full">
+                  {badge.title}
+                </span>
+                <span className="text-[9px] text-neutral-400 dark:text-neutral-500 font-medium mt-0.5">
+                  {isUnlocked ? 'Unlocked ✨' : badge.progressLabel}
+                </span>
+              </div>
+            );
+          })}
         </div>
       </div>
 

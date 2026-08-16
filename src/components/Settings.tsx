@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { usePomodoro, type TimerSettings } from '../context/PomodoroContext';
 import { audio } from '../utils/audio';
-import { Volume2, Bell, Sun, Moon, Laptop, Trash2, ShieldAlert, Image, Upload, Check, Palette, Wind } from 'lucide-react';
+import { Volume2, Bell, Sun, Moon, Laptop, Trash2, ShieldAlert, Image, Upload, Check, Palette, Wind, Target } from 'lucide-react';
 import { CustomAudioUploader } from './CustomAudioUploader';
 
 export const Settings: React.FC = () => {
@@ -633,6 +633,70 @@ export const Settings: React.FC = () => {
             </div>
           )}
         </div>
+
+      {/* Daily Focus Goal & Gamification Settings */}
+      <div className="space-y-3 border-t border-neutral-100 dark:border-neutral-800/80 pt-4">
+        <div className="flex items-center gap-1.5">
+          <Target size={14} className="text-blue-500" />
+          <h3 className="text-xs font-bold text-neutral-800 dark:text-neutral-200 uppercase tracking-wider">
+            Daily Focus Target & Badges
+          </h3>
+        </div>
+
+        <div>
+          <label htmlFor="daily-focus-target-select" className="block text-[11px] font-medium text-neutral-500 dark:text-neutral-400 mb-1.5">
+            Daily Focus Target Goal
+          </label>
+          <div className="grid grid-cols-4 gap-1.5">
+            {[
+              { label: '1 Hour', minutes: 60 },
+              { label: '2 Hours', minutes: 120 },
+              { label: '3 Hours', minutes: 180 },
+              { label: '4 Hours', minutes: 240 },
+              { label: '5 Hours', minutes: 300 },
+              { label: '6 Hours', minutes: 360 },
+              { label: '7 Hours', minutes: 420 },
+              { label: '8 Hours', minutes: 480 },
+            ].map((option) => {
+              const isSelected = settings.dailyFocusTarget === option.minutes;
+              return (
+                <button
+                  key={option.minutes}
+                  type="button"
+                  onClick={() => updateSettings({ dailyFocusTarget: option.minutes })}
+                  className={`py-1.5 px-2 rounded-xl text-xs font-bold border transition-all text-center ${
+                    isSelected
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                      : 'bg-neutral-50 dark:bg-neutral-800/40 text-neutral-600 dark:text-neutral-400 border-neutral-200 dark:border-neutral-800 hover:border-neutral-300'
+                  }`}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <label className="flex items-center justify-between cursor-pointer group pt-1">
+          <div>
+            <span className="text-xs text-neutral-700 dark:text-neutral-300 font-medium block">
+              Show Daily Progress Ring on Timer
+            </span>
+            <span className="text-[10px] text-neutral-400 dark:text-neutral-500 block">
+              Display goal progress indicator and badge counter
+            </span>
+          </div>
+          <div className="relative">
+            <input
+              type="checkbox"
+              checked={settings.showDailyProgressRing}
+              onChange={() => handleToggle('showDailyProgressRing')}
+              className="sr-only peer"
+            />
+            <div className="w-8 h-4.5 bg-neutral-200 dark:bg-neutral-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-blue-600"></div>
+          </div>
+        </label>
+      </div>
 
       {/* Auto Start Toggles */}
       <div className="space-y-2.5 border-t border-neutral-100 dark:border-neutral-800/80 pt-4">

@@ -11,7 +11,7 @@ const breakSuggestions = [
   "Roll your neck gently 🙆",
   "Take 3 deep breaths 🌬️"
 ];
-import { Play, Pause, RotateCcw, SkipForward, EyeOff, Eye, Maximize, Minimize, Wind } from 'lucide-react';
+import { Play, Pause, RotateCcw, SkipForward, EyeOff, Eye, Maximize, Minimize, Wind, Target, Award } from 'lucide-react';
 import { GuidedBreaksContainer } from './breaks/GuidedBreaksContainer';
 
 export const Timer: React.FC = () => {
@@ -33,6 +33,11 @@ export const Timer: React.FC = () => {
     toggleFullscreen,
     breakActivity,
     setBreakActivity,
+    todayFocusMinutes,
+    dailyGoalPercentage,
+    badges,
+    unlockedBadgesCount,
+    setIsBadgesModalOpen,
   } = usePomodoro();
 
   const activeTask = tasks.find((t) => t.id === activeTaskId);
@@ -323,6 +328,54 @@ export const Timer: React.FC = () => {
             <span>{isFullscreen ? "Exit Fullscreen" : "Fullscreen"}</span>
           </button>
         </div>
+      )}
+
+      {/* Daily Focus Goal Progress Ring Indicator */}
+      {settings.showDailyProgressRing && !focusMode && (
+        <button
+          type="button"
+          onClick={() => setIsBadgesModalOpen(true)}
+          className="flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-white/70 dark:bg-neutral-900/70 hover:bg-white dark:hover:bg-neutral-850 border border-neutral-200/80 dark:border-neutral-800 backdrop-blur-md cursor-pointer transition-all duration-300 shadow-xs mb-4 active:scale-95 group z-10"
+          title="Daily Focus Goal & Milestone Badges"
+        >
+          {/* Mini SVG Progress Ring */}
+          <div className="relative w-5 h-5 flex items-center justify-center flex-shrink-0">
+            <svg className="w-5 h-5 -rotate-90 transform" viewBox="0 0 36 36">
+              <path
+                className="stroke-neutral-200 dark:stroke-neutral-800 fill-none"
+                strokeWidth="3.5"
+                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+              />
+              <path
+                className={`${dailyGoalPercentage >= 100 ? 'stroke-amber-500' : 'stroke-blue-600 dark:stroke-blue-500'} fill-none transition-all duration-500`}
+                strokeWidth="3.5"
+                strokeDasharray={`${dailyGoalPercentage}, 100`}
+                strokeLinecap="round"
+                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+              />
+            </svg>
+            <Target size={9} className="absolute text-blue-600 dark:text-blue-400" />
+          </div>
+
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-neutral-700 dark:text-neutral-300">
+            <span>
+              Goal: {todayFocusMinutes < 60 ? `${todayFocusMinutes}m` : `${Math.floor(todayFocusMinutes / 60)}h ${todayFocusMinutes % 60 ? `${todayFocusMinutes % 60}m` : ''}`.trim()} / {settings.dailyFocusTarget < 60 ? `${settings.dailyFocusTarget}m` : `${Math.floor(settings.dailyFocusTarget / 60)}h ${settings.dailyFocusTarget % 60 ? `${settings.dailyFocusTarget % 60}m` : ''}`.trim()}
+            </span>
+            <span className={`text-[10px] font-extrabold px-1.5 py-0.2 rounded-full ${
+              dailyGoalPercentage >= 100
+                ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
+                : 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
+            }`}>
+              {dailyGoalPercentage}%
+            </span>
+          </div>
+
+          {/* Badges count pill */}
+          <div className="flex items-center gap-1 text-[11px] font-bold text-neutral-400 dark:text-neutral-500 border-l border-neutral-200 dark:border-neutral-800 pl-2">
+            <Award size={12} className="text-amber-500" />
+            <span>{unlockedBadgesCount}/{badges.length}</span>
+          </div>
+        </button>
       )}
 
       {/* Main Timer Display Group */}

@@ -5,6 +5,8 @@ import { TaskList } from './components/TaskList';
 import { Stats } from './components/Stats';
 import { Settings } from './components/Settings';
 import { AmbientSoundWidget } from './components/AmbientSoundWidget';
+import { BadgeToast } from './components/BadgeToast';
+import { BadgesModal } from './components/BadgesModal';
 import { Keyboard, X, Settings as SettingsIcon, CheckSquare, BarChart2 } from 'lucide-react';
 
 const DashboardContent: React.FC = () => {
@@ -336,6 +338,10 @@ const DashboardContent: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Milestone Badge Toast & Modal */}
+      <BadgeToast />
+      <BadgesModal />
 
       {/* Footer */}
       <footer
